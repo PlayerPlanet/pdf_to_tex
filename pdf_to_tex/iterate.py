@@ -171,6 +171,56 @@ def insert_usepackage(lines: List[str], pkg: str) -> List[str]:
     return new_lines
 
 
+def suggest_package_for_symbol(model_name: str, symbol: str, fragment: str, is_env: bool = False) -> Optional[str]:
+    """Ask the model to suggest a LaTeX package that provides `symbol`.
+
+    Returns a package name (string) or None if no suggestion found.
+    """
+    if not model_name:
+        return None
+
+    # small prompt asking for a package
+    if is_env:
+        q = (
+            f"You are a LaTeX expert. Which LaTeX package provides the environment '{symbol}'? "
+            "If no package is required (the environment is core LaTeX), reply with NONE. "
+            "Return only the package name (e.g. amsmath) or NONE."
+        )
+    else:
+        # symbol is like \cmd
+        q = (
+            f"You are a LaTeX expert. Which LaTeX package provides the command '{symbol}'? "
+            "If it's a core command that requires no extra package, reply with NONE. "
+            "Return only the package name (e.g. amssymb) or NONE."
+        )
+
+    try:
+        resp = call_model_for_correction(model_name, q, fragment)
+        txt = extract_model_text(resp)
+        if txt is None:
+            return None
+        txt = strip_fences(txt).strip()
+    except Exception:
+        return None
+
+    # Try parse common patterns like \usepackage{pkg} or just 'pkg'
+    m = re.search(r"\\usepackage\{\s*([a-zA-Z0-9_\-]+)\s*\}", txt)
+    if m:
+        return m.group(1)
+    # also accept plain words like 'amssymb' or sentences containing it
+    # prefer known popular packages
+    known = ["amssymb", "amsmath", "amsfonts", "mathrsfs", "amsthm", "latexsym", "graphicx", "xcolor", "mathtools", "bm"]
+    for k in known:
+        if re.search(rf"\b{k}\b", txt, re.IGNORECASE):
+            return k
+
+    # fallback: return first token that looks like a package name
+    m2 = re.search(r"\b([a-zA-Z][a-zA-Z0-9_\-]{1,30})\b", txt)
+    if m2:
+        return m2.group(1)
+    return None
+
+
 def prompt_for_fix(fragment: str, lineno: int, extra_instructions: Optional[str] = None) -> str:
     instr = (
         "You are a LaTeX expert. The following fragment of a larger .tex file causes a compilation error.\n"
