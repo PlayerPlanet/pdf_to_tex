@@ -170,7 +170,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pdf", required=True, help="Path to input PDF")
     parser.add_argument("--output", default="output.tex", help="Output LaTeX file")
-    parser.add_argument("--model", default="qwen2.5vl:3b", help="Ollama model to use")
+    parser.add_argument("--model", default="qwen2.5vl:7b", help="Ollama model to use")
     parser.add_argument("--scale", type=float, default=2.0, help="Initial render scale to try")
     parser.add_argument("--max-parts", type=int, default=6, help="Max number of vertical parts to try")
     parser.add_argument("--lr-margin", type=float, default=0.15, help="Left/right margin fraction to trim")

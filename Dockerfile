@@ -12,6 +12,4 @@ RUN pip install --upgrade pip setuptools wheel
 RUN pip install .
 
 # Default command: run pipeline entrypoint (override with docker run args)
-ENTRYPOINT ["python", "pdf_to_tex/pipeline.py"]
-
-CMD ["--pdf", "/app/pde2025.pdf", "--start-page", "1", "--output", "/app/output.tex"]
+ENTRYPOINT ["python", "pdf_to_tex/pipeline.py", "--pdf", "/app/pde2025.pdf"]
