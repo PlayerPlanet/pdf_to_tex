@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "11434:11434"
-      
+
   pipeline:
     build: .
     container_name: pdf2latex_pipeline
@@ -21,14 +21,13 @@ services:
       # Optionally hide GPUs in the pipeline container if you prefer CPU-only for model runs
       # - CUDA_VISIBLE_DEVICES=
     command: ["python", "pipeline.py"]
-
-deploy:
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          count: 1 # alternatively, use `count: all` for all GPUs
-          capabilities: [gpu]
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1 # alternatively, use `count: all` for all GPUs
+            capabilities: [gpu]
 
 networks:
   default:
