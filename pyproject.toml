@@ -1,0 +1,22 @@
+[project]
+name = "prompt-optimization"
+version = "0.1.0"
+description = "This package is a sideproject to different prompt optimization methods."
+authors = [
+    {name = "Konsta Kiirikki",email = "konsta.kiirikki@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<4.0.0"
+dependencies = [
+    "pymupdf (>=1.26.1,<2.0.0)",
+    "langchain (>=0.3.25,<0.4.0)",
+    "ollama (>=0.5.1,<0.6.0)",
+    "huggingface (>=0.0.1,<0.0.2)",
+    "tqdm (>=4.67.1,<5.0.0)",
+    "pillow (>=12.0.0,<13.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

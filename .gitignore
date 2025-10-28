@@ -1,0 +1,7 @@
+.venv/
+images/
+lin-alg/
+*.txt
+*.pdf
+*.tex
+*.cpython**

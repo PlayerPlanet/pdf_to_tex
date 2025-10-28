@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      # Make the server listen on all interfaces inside the container
+      - OLLAMA_LISTEN_ADDR=0.0.0.0:11434
+    volumes:
+      # persistent storage for ollama (optional)
+      - ./ollama_data:/var/lib/ollama
+    # Request access to all NVIDIA GPUs on the host
+    device_requests:
+      - driver: nvidia
+        count: -1     # -1 => all GPUs
+        capabilities: [gpu]
+
+  pipeline:
+    build: .
+    container_name: pdf2latex_pipeline
+    depends_on:
+      - ollama
+    volumes:
+      - ./:/app
+    environment:
+      # Point the pipeline to the ollama container's host:port
+      - OLLAMA_HOST=ollama:11434
+      # Optionally hide GPUs in the pipeline container if you prefer CPU-only for model runs
+      # - CUDA_VISIBLE_DEVICES=
+    command: ["python", "pipeline.py"]
+
+networks:
+  default:
+    name: pdf2latex_net
