@@ -8,7 +8,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY . /app
 
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip setuptools wheel
 RUN pip install .
 
 # Default command: run pipeline entrypoint (override with docker run args)
