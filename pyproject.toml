@@ -1,5 +1,5 @@
 [project]
-name = "prompt-optimization"
+name = "pdf_to_tex"
 version = "0.1.0"
 description = "This package is a sideproject to different prompt optimization methods."
 authors = [

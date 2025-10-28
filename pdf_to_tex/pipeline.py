@@ -24,7 +24,7 @@ import sys
 from typing import List, Tuple
 
 from image_diagnosis import render_page_to_png, split_image_vertically, call_model_with_image
-from compose import extract_model_text, ensure_model, call_model_for_correction, strip_fences
+from pdf_to_tex.compose import extract_model_text, ensure_model, call_model_for_correction, strip_fences
 from diagnosis import extract_page_text
 
 try:
