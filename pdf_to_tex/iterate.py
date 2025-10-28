@@ -18,7 +18,7 @@ import re
 import subprocess
 from pathlib import Path
 import sys
-from typing import List
+from typing import List, Optional
 
 from compose import ensure_model, call_model_for_correction, extract_model_text, strip_fences
 try:
@@ -33,30 +33,62 @@ def run_pdflatex(tex_path: Path, workdir: Path, cmd: List[str]) -> (int, str):
 
 
 def parse_latex_errors(log_text: str):
-    """Heuristic parser for pdflatex output: find '! <message>' followed by 'l.<num>' markers.
+    """Parse pdflatex output and return a list of errors.
 
-    Returns list of dicts {'line': int|None, 'message': str}.
+    This is a tolerant parser which handles several common formats produced by
+    TeX engines, including:
+
+    - lines starting with "! <message>" followed by a "l.<num>" reference
+    - lines like "./file.tex:6: LaTeX Error: <message>"
+    - lines containing "LaTeX Error:" without a file prefix
+
+    Returns list of dicts: {'line': int|None, 'message': str}.
     """
     errors = []
     lines = log_text.splitlines()
+
+    # First, scan for explicit file:line: LaTeX Error: messages
+    fileline_re = re.compile(r"^(?:\./)?([^:\s]+):(\d+):\s+LaTeX Error:\s*(.*)$")
+    for ln in lines:
+        m = fileline_re.match(ln.strip())
+        if m:
+            lineno = int(m.group(2))
+            msg = m.group(3).strip()
+            errors.append({"line": lineno, "message": msg})
+
+    # Second, fallback to old-style "! message" markers
     i = 0
     while i < len(lines):
         ln = lines[i].strip()
         if ln.startswith("!"):
             msg = ln[1:].strip()
-            # scan forward for l.<num>
             lineno = None
             j = i + 1
+            # look forward a few lines for l.<num> or filename:line patterns
             while j < len(lines) and j < i + 12:
                 m = re.search(r"l\.(\d+)", lines[j])
                 if m:
                     lineno = int(m.group(1))
+                    break
+                m2 = fileline_re.search(lines[j])
+                if m2:
+                    lineno = int(m2.group(2))
                     break
                 j += 1
             errors.append({"line": lineno, "message": msg})
             i = j
         else:
             i += 1
+
+    # If nothing found, also look for standalone 'LaTeX Error:' lines
+    if not errors:
+        for ln in lines:
+            if "LaTeX Error:" in ln:
+                # try to extract text after the marker
+                parts = ln.split("LaTeX Error:", 1)
+                msg = parts[1].strip() if len(parts) > 1 else ln.strip()
+                errors.append({"line": None, "message": msg})
+
     return errors
 
 
@@ -72,7 +104,7 @@ def extract_window(lines: List[str], lineno: int, ctx: int = 8):
     return start, end, fragment
 
 
-def prompt_for_fix(fragment: str, lineno: int, extra_instructions: str = None) -> str:
+def prompt_for_fix(fragment: str, lineno: int, extra_instructions: Optional[str] = None) -> str:
     instr = (
         "You are a LaTeX expert. The following fragment of a larger .tex file causes a compilation error.\n"
         f"Approximate offending line: {lineno}\n\n"
