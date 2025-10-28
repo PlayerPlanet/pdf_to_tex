@@ -2,7 +2,12 @@ FROM python:3.11-slim
 
 # Install system deps for pymupdf / pillow
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libjpeg-dev zlib1g-dev libmupdf-dev texlive-core\
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       libjpeg-dev \
+       zlib1g-dev \
+       libmupdf-dev \
+       texlive-base \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
