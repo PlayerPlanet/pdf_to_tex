@@ -107,12 +107,18 @@ def parse_latex_errors(log_text: str):
 
 def extract_window(lines: List[str], lineno: int, ctx: int = 8):
     """Return (start, end, fragment) for given 1-based lineno. If lineno is None, return last chunk."""
+    # Protect first and last lines from being part of a replacement. We treat
+    # line 1 and the final line as immutable guards (usually \documentclass and \end{document}).
+    n = len(lines)
+    first_ok = 2
+    last_ok = max(1, n - 1)
+
     if lineno is None:
-        start = max(1, len(lines) - 40 + 1)
-        end = len(lines)
+        start = max(first_ok, n - 40 + 1)
+        end = last_ok
     else:
-        start = max(1, lineno - ctx)
-        end = min(len(lines), lineno + ctx)
+        start = max(first_ok, lineno - ctx)
+        end = min(last_ok, lineno + ctx)
     fragment = "\n".join(lines[start - 1:end])
     return start, end, fragment
 
@@ -237,6 +243,18 @@ def prompt_for_fix(fragment: str, lineno: int, extra_instructions: Optional[str]
 def apply_replacement(lines: List[str], start: int, end: int, replacement: str) -> List[str]:
     # start/end are 1-based inclusive
     rep_lines = replacement.splitlines()
+    n = len(lines)
+    # Protect first and last lines from being overwritten
+    first_ok = 2
+    last_ok = max(1, n - 1)
+
+    if start < first_ok:
+        print(f"Warning: attempted to replace starting at line {start}, clamping to {first_ok}")
+        start = first_ok
+    if end > last_ok:
+        print(f"Warning: attempted to replace ending at line {end}, clamping to {last_ok}")
+        end = last_ok
+
     new_lines = []
     new_lines.extend(lines[: start - 1])
     new_lines.extend(rep_lines)
