@@ -56,6 +56,19 @@ def parse_latex_errors(log_text: str):
             msg = m.group(3).strip()
             errors.append({"line": lineno, "message": msg})
 
+    # Also accept generic file:line: message lines (e.g. "./output.tex:436: Undefined control sequence.")
+    fileline_general_re = re.compile(r"^(?:\./)?([^:\s]+):(\d+):\s*(.*)$")
+    for ln in lines:
+        m = fileline_general_re.match(ln.strip())
+        if m:
+            lineno = int(m.group(2))
+            msg = m.group(3).strip()
+            # Avoid duplicating entries already captured
+            if not any(e.get("line") == lineno and e.get("message") == msg for e in errors):
+                # Heuristic: skip trivial lines that are just '(' or ')' etc.
+                if msg and msg not in ("(", ")"):
+                    errors.append({"line": lineno, "message": msg})
+
     # Second, fallback to old-style "! message" markers
     i = 0
     while i < len(lines):
