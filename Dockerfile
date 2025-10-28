@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . /app
 
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install pyproject.toml
 
 # Default command: run pipeline entrypoint (override with docker run args)
 ENTRYPOINT ["python", "pipeline.py"]
