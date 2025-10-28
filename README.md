@@ -1,0 +1,1 @@
+This package will convert any given pdf to latex .tex file.
