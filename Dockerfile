@@ -8,6 +8,7 @@ RUN apt-get update \
        zlib1g-dev \
        libmupdf-dev \
        texlive-base \
+       texlive-latex-base \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
