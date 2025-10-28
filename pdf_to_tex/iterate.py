@@ -19,6 +19,7 @@ import subprocess
 from pathlib import Path
 import sys
 from typing import List, Optional
+import hashlib
 
 from compose import ensure_model, call_model_for_correction, extract_model_text, strip_fences
 try:
@@ -27,7 +28,7 @@ except Exception:
     tqdm = None
 
 
-def run_pdflatex(tex_path: Path, workdir: Path, cmd: List[str]) -> (int, str):
+def run_pdflatex(tex_path: Path, workdir: Path, cmd: List[str]) -> tuple[int, str]:
     proc = subprocess.run(cmd + [str(tex_path.name)], cwd=str(workdir), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     return proc.returncode, proc.stdout
 
@@ -297,6 +298,9 @@ def main():
 
     attempt_counts = {}
 
+    applied_preamble_hashes = set()
+    preamble_duplicate_counts = {}
+
     for it in iter_iter:
         print(f"[iter {it}] running {args.pdflatex_cmd}...")
         cmd = [args.pdflatex_cmd, "-interaction=nonstopmode", "-halt-on-error", "-file-line-error"]
@@ -389,16 +393,48 @@ def main():
         if preamble_patch:
             # Insert preamble lines (allow multiple lines)
             patch_lines = [l for l in preamble_patch.splitlines() if l.strip()]
-            if patch_lines:
-                # insert after documentclass/usepackage region
-                lines = insert_usepackage(lines, "%__MODEL_INSERT__%")  # placeholder to get position
-                # Replace placeholder with actual patch lines
-                for i, ln in enumerate(lines):
-                    if ln.strip() == "\\usepackage{%__MODEL_INSERT__%}":
-                        lines = lines[:i] + patch_lines + lines[i+1:]
-                        break
-                tex_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                print("Applied preamble patch returned by model.")
+            patch_text = "\n".join(patch_lines).strip()
+            patch_hash = hashlib.sha256(patch_text.encode("utf-8")).hexdigest()
+
+            # Detect repeated identical patches to avoid infinite loops
+            if patch_hash in applied_preamble_hashes:
+                preamble_duplicate_counts[patch_hash] = preamble_duplicate_counts.get(patch_hash, 0) + 1
+                print(f"Preamble patch identical to a previously applied patch (count={preamble_duplicate_counts[patch_hash]}).")
+                if preamble_duplicate_counts[patch_hash] >= 2:
+                    # dump suggestion for manual review and abort
+                    dump_path = workdir / "preamble_suggestion.txt"
+                    dump_path.write_text(patch_text + "\n", encoding="utf-8")
+                    print(f"Preamble patch was applied multiple times without resolving the error.\nWrote suggested preamble patch to {dump_path}. Please inspect and apply manually or adjust the document. Aborting.")
+                    sys.exit(8)
+                else:
+                    # already applied once; skip re-applying and continue to let pdflatex run
+                    print("Skipping re-application of identical preamble patch; re-running pdflatex to check effect.")
+            else:
+                if patch_lines:
+                    # insert after documentclass/usepackage region
+                    lines = insert_usepackage(lines, "%__MODEL_INSERT__%")  # placeholder to get position
+                    # Replace placeholder with actual patch lines, avoiding duplicate \usepackage lines
+                    for i, ln in enumerate(lines):
+                        if ln.strip() == "\\usepackage{%__MODEL_INSERT__%}":
+                            # insert patch_lines but avoid adding packages already present
+                            cleaned = []
+                            for pl in patch_lines:
+                                mup = re.match(r"\\usepackage(?:\[[^]]+\])?\{\s*([a-zA-Z0-9_\-]+)\s*\}", pl.strip())
+                                if mup:
+                                    pkgname = mup.group(1)
+                                    if package_in_preamble(lines, pkgname):
+                                        print(f"Package {pkgname} already in preamble; skipping.")
+                                        continue
+                                cleaned.append(pl)
+                            lines = lines[:i] + cleaned + lines[i+1:]
+                            break
+                    tex_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    applied_preamble_hashes.add(patch_hash)
+                    print("Applied preamble patch returned by model.")
+
+            # After applying or skipping, sanity-check that \begin{document} exists
+            if not any(l.strip().startswith("\\begin{document}") for l in lines):
+                print("Warning: \begin{document} not found in document after applying preamble patch.")
 
         # Apply replacement and write file
         new_lines = apply_replacement(lines, start, end, replacement)
