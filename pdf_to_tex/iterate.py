@@ -21,6 +21,10 @@ import sys
 from typing import List
 
 from compose import ensure_model, call_model_for_correction, extract_model_text, strip_fences
+try:
+    from tqdm import tqdm
+except Exception:
+    tqdm = None
 
 
 def run_pdflatex(tex_path: Path, workdir: Path, cmd: List[str]) -> (int, str):
@@ -118,7 +122,13 @@ def main():
 
     lines = tex_path.read_text(encoding="utf-8").splitlines()
 
-    for it in range(1, args.max_iter + 1):
+    iter_range = range(1, args.max_iter + 1)
+    if tqdm is not None:
+        iter_iter = tqdm(iter_range, desc="Iterations")
+    else:
+        iter_iter = iter_range
+
+    for it in iter_iter:
         print(f"[iter {it}] running {args.pdflatex_cmd}...")
         cmd = [args.pdflatex_cmd, "-interaction=nonstopmode", "-halt-on-error", "-file-line-error"]
         rc, out = run_pdflatex(tex_path, workdir, cmd)
